@@ -17,5 +17,6 @@ namespace SocialApp.Data.Models
 
         // Navigation properties
         public User User { get; set; }
+        public ICollection<Like> Likes { get; set; } = new List<Like>();
     }
 }
