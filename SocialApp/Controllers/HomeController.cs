@@ -20,7 +20,11 @@ namespace SocialApp.Controllers
 
         public async Task<IActionResult> Index()
         {
+
+            int loggedInUserId = 1;
+
             var AllPosts = await _context.Posts
+                .Where(n => !n.IsProvate || n.UserId == loggedInUserId)
                 .Include(n => n.User)
                 .Include(n => n.Likes)
                 .Include(n => n.Favorites)
@@ -129,6 +133,26 @@ namespace SocialApp.Controllers
                 };
 
                 await _context.Favorites.AddAsync(newFavorite);
+                await _context.SaveChangesAsync();
+            }
+
+            return RedirectToAction("Index");
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> TogglePostVisibility(PostVisibilityVM postVisibilityVM)
+        {
+            int loggedInUserId = 1;
+
+            // get post by id loggedin user id
+            var post = await _context.Posts
+                .FirstOrDefaultAsync(l => l.Id == postVisibilityVM.PostId && l.UserId == loggedInUserId)
+                ;
+
+            if (post != null)
+            {
+                post.IsProvate = !post.IsProvate;
+                _context.Posts.Update(post);
                 await _context.SaveChangesAsync();
             }
 
