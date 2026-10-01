@@ -24,11 +24,12 @@ namespace SocialApp.Controllers
             int loggedInUserId = 1;
 
             var AllPosts = await _context.Posts
-                .Where(n => !n.IsProvate || n.UserId == loggedInUserId)
+                .Where(n => (!n.IsProvate || n.UserId == loggedInUserId) && n.Reports.Count < 5)
                 .Include(n => n.User)
                 .Include(n => n.Likes)
                 .Include(n => n.Favorites)
                 .Include(n => n.Comments).ThenInclude(n => n.User)
+                .Include(n => n.Reports)
                 .OrderByDescending(n => n.DateCreated)
                 .ToListAsync();
 
@@ -175,6 +176,25 @@ namespace SocialApp.Controllers
             };
 
             await _context.Comments.AddAsync(newComment);
+            await _context.SaveChangesAsync();
+
+            return RedirectToAction("Index");
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> AddPostReport(PostReportVM postReportVM)
+        {
+            int loggedInUserId = 1;
+
+            // Create a post object
+            var newReport = new Report()
+            {
+                UserId = loggedInUserId,
+                PostId = postReportVM.PostId,
+                DateCreated = DateTime.UtcNow
+            };
+
+            await _context.Reports.AddAsync(newReport);
             await _context.SaveChangesAsync();
 
             return RedirectToAction("Index");
