@@ -94,5 +94,22 @@
     </div>
 </main>
 
-<partial name="Modals/_CreateStory"></partial>
-<partial name="Modals/_CreateStatus" model="new PostVM()"></partial>
+<partial name="Modals/_CreateStory"/>
+<partial name="Modals/_CreateStatus" model="new PostVM()"/>
+<partial name="Home/_PostDeleteConfirmation" />
+
+<script>
+    function openPostDeleteConfirmation(postId, btn) {
+        console.log('Selected post id - ', postId);
+
+        // Buscar el dropdown más cercano al botón
+        const dropdownEl = btn.closest(".post-options-dropdown");
+        if (dropdownEl) {
+            const dropdownInstance = UIkit.dropdown(dropdownEl);
+            dropdownInstance.hide(false); // false = cerrar inmediatamente
+        }
+
+        document.getElementById("deleteConfirmationPostId").value = postId;
+        UIkit.modal("#postDeleteDialog").show();
+    }
+</script>
