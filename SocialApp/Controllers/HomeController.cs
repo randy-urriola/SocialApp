@@ -3,6 +3,7 @@ using System.Net.WebSockets;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SocialApp.Data;
+using SocialApp.Data.Helpers;
 using SocialApp.Data.Models;
 using SocialApp.ViewModels.Home;
 
@@ -76,6 +77,33 @@ namespace SocialApp.Controllers
             // Add the post to the database
             await _context.Posts.AddAsync(newPost);
             await _context.SaveChangesAsync();
+
+            // find and store hash tags
+            var postHashTags = HashtagHelper.GetHashtags(post.Content);
+            foreach (var hashTag in postHashTags)
+            {
+                var hashTagDb = await _context.Hashtags.FirstOrDefaultAsync(h => h.Name == hashTag);
+                if(hashTagDb != null)
+                {
+                    hashTagDb.Count += 1;
+                    hashTagDb.DateUpdated = DateTime.UtcNow;
+
+                    _context.Hashtags.Update(hashTagDb);
+                    await _context.SaveChangesAsync();
+                } else
+                {
+                    var newHashTag = new Hashtag()
+                    {
+                        Name = hashTag,
+                        Count = 1,
+                        DateCreated = DateTime.UtcNow,
+                        DateUpdated = DateTime.UtcNow
+                    };
+
+                    await _context.Hashtags.AddAsync(newHashTag);
+                    await _context.SaveChangesAsync();
+                }
+            }
 
             // Redirect to the index page
             return RedirectToAction("Index");
@@ -219,12 +247,29 @@ namespace SocialApp.Controllers
         public async Task<IActionResult> PostRemove(PostRemoveVM postRemoveVM)
         {
             var postDb = await _context.Posts.FirstOrDefaultAsync(p => p.Id == postRemoveVM.PostId);
-            if(postDb != null)
+            if (postDb != null)
             {
                 postDb.IsDeleted = true;
                 _context.Posts.Update(postDb);
                 await _context.SaveChangesAsync();
+
+                // Update hashtags count for the removed post
+                var postHashTags = HashtagHelper.GetHashtags(postDb.Content);
+                foreach (var hashtag in postHashTags)
+                {
+                    var hashtagDb = await _context.Hashtags.FirstOrDefaultAsync(n => n.Name == hashtag);
+                    if (hashtagDb != null)
+                    {
+                        hashtagDb.Count -= 1;
+                        hashtagDb.DateUpdated = DateTime.UtcNow;
+
+                        _context.Hashtags.Update(hashtagDb);
+                        await _context.SaveChangesAsync();
+                    }
+                }
             }
+
+            
 
             return RedirectToAction("Index");
         }
