@@ -14,12 +14,7 @@ namespace SocialApp.Controllers
         public StoriesController(AppDbContext context) {
             _context = context;
         }
-        public async Task<IActionResult> Index()
-        {
-
-            var allStories = await _context.Stories.Include(s => s.User).ToListAsync();
-            return View(allStories);
-        }
+        
 
         [HttpPost]
         public async Task<IActionResult> CreateStory(StoryVM storyVM)
@@ -60,7 +55,7 @@ namespace SocialApp.Controllers
             await _context.SaveChangesAsync();
 
             // Redirect to the index page
-            return RedirectToAction("Index");
+            return RedirectToAction("Index", "Home");
         }
     }
 }
