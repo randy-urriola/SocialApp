@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SocialApp.Data;
 using SocialApp.Data.Helpers;
+using SocialApp.Data.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,6 +11,9 @@ builder.Services.AddControllersWithViews();
 // Database configuration
 var dbConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(dbConnectionString));
+
+// Services configuration
+builder.Services.AddScoped<IPostsService, PostsService>();
 
 var app = builder.Build();
 
