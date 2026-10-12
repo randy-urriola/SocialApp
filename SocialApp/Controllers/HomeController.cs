@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SocialApp.Data;
 using SocialApp.Data.Helpers;
+using SocialApp.Data.Helpers.Enums;
 using SocialApp.Data.Models;
 using SocialApp.Data.Services;
 using SocialApp.ViewModels.Home;
@@ -13,14 +14,16 @@ namespace SocialApp.Controllers
     public class HomeController : Controller
     {
         private readonly ILogger<HomeController> _logger;
-        private readonly AppDbContext _context;
         private readonly IPostsService _postsService;
+        private readonly IHashtagsService _hashtagsService;
+        private readonly IFilesService _filesService;
 
-        public HomeController(ILogger<HomeController> logger, AppDbContext context, IPostsService postsService)
+        public HomeController(ILogger<HomeController> logger, IPostsService postsService, IHashtagsService hashtagsService, IFilesService filesService)
         {
             _logger = logger;
-            _context = context;
             _postsService = postsService;
+            _hashtagsService = hashtagsService;
+            _filesService = filesService;
         }
 
         public async Task<IActionResult> Index()
@@ -38,46 +41,20 @@ namespace SocialApp.Controllers
             // Get the logged in user
             int loggedInUser = 1;
 
+            var imageUploadPath = await _filesService.UploadImageAsync(post.Image, ImageFileType.PostImage);
+
             // Create a new post 
             var newPost = new Post
             {
                 Content = post.Content,
                 DateCreated = DateTime.UtcNow,
                 DateUpdated = DateTime.UtcNow,
-                ImageUrl = "",
+                ImageUrl = imageUploadPath,
                 UserId = loggedInUser,
             };
 
-            await _postsService.CreatePostAsync(newPost, post.Image);
-
-
-            // find and store hash tags
-            //var postHashTags = HashtagHelper.GetHashtags(post.Content);
-            //foreach (var hashTag in postHashTags)
-            //{
-            //    var hashTagDb = await _context.Hashtags.FirstOrDefaultAsync(h => h.Name == hashTag);
-            //    if (hashTagDb != null)
-            //    {
-            //        hashTagDb.Count += 1;
-            //        hashTagDb.DateUpdated = DateTime.UtcNow;
-
-            //        _context.Hashtags.Update(hashTagDb);
-            //        await _context.SaveChangesAsync();
-            //    }
-            //    else
-            //    {
-            //        var newHashTag = new Hashtag()
-            //        {
-            //            Name = hashTag,
-            //            Count = 1,
-            //            DateCreated = DateTime.UtcNow,
-            //            DateUpdated = DateTime.UtcNow
-            //        };
-
-            //        await _context.Hashtags.AddAsync(newHashTag);
-            //        await _context.SaveChangesAsync();
-            //    }
-            //}
+            await _postsService.CreatePostAsync(newPost);
+            await _hashtagsService.ProcessHashtagsForNewPostAsync(post.Content);
 
             // Redirect to the index page
             return RedirectToAction("Index");
@@ -151,27 +128,8 @@ namespace SocialApp.Controllers
         [HttpPost]
         public async Task<IActionResult> PostRemove(PostRemoveVM postRemoveVM)
         {
-            await _postsService.RemovePostAsync(postRemoveVM.PostId);
-
-
-
-            // Update hashtags count for the removed post
-            //var postHashTags = HashtagHelper.GetHashtags(postDb.Content);
-            //foreach (var hashtag in postHashTags)
-            //{
-            //    var hashtagDb = await _context.Hashtags.FirstOrDefaultAsync(n => n.Name == hashtag);
-            //    if (hashtagDb != null)
-            //    {
-            //        hashtagDb.Count -= 1;
-            //        hashtagDb.DateUpdated = DateTime.UtcNow;
-
-            //        _context.Hashtags.Update(hashtagDb);
-            //        await _context.SaveChangesAsync();
-            //    }
-            //}
-
-
-
+            var postRemoved = await _postsService.RemovePostAsync(postRemoveVM.PostId);
+            await _hashtagsService.ProcessHashtagsForRemovePostAsync(postRemoved.Content);
 
             return RedirectToAction("Index");
         }

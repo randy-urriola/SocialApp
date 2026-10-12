@@ -32,33 +32,34 @@ namespace SocialApp.Data.Services
             return AllPosts;
         }
 
+        public async Task<List<Post>> GetAllFavoritedPostsAsync(int loggedInUserId)
+        {
+            var allFavoritedPosts = await _context.Favorites
+                .Include(f => f.Post.Reports)
+                .Include(f => f.Post.User)
+                .Include(f => f.Post.Comments)
+                        .ThenInclude(c => c.User)
+                .Include(f => f.Post.Likes)
+                .Include(f => f.Post.Favorites)
+                .Where(n => n.UserId == loggedInUserId &&
+                    !n.Post.IsDeleted &&
+                    n.Post.Reports.Count < 5)
+                .OrderByDescending(f => f.Post.DateCreated)
+                .Select(n => n.Post)
+                .ToListAsync();
+
+            return allFavoritedPosts;
+        }
+
         public async Task AddPostCommentAsync(Comment comment)
         {
             await _context.Comments.AddAsync(comment);
             await _context.SaveChangesAsync();
         }
 
-        public async Task<Post> CreatePostAsync(Post post, IFormFile image)
+        public async Task<Post> CreatePostAsync(Post post)
         {
-            // Check and save the image
-            if (image != null && image.Length > 0)
-            {
-                string rootFolderPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-                if (image.ContentType.Contains("image"))
-                {
-                    string rootFolderPathImages = Path.Combine(rootFolderPath, "images/posts");
-                    Directory.CreateDirectory(rootFolderPathImages);
 
-                    string fileName = Guid.NewGuid().ToString() + Path.GetExtension(image.FileName);
-                    string filePath = Path.Combine(rootFolderPathImages, fileName);
-
-                    using (var stream = new FileStream(filePath, FileMode.Create))
-                        await image.CopyToAsync(stream);
-
-                    // Set the URL to the newPost object
-                    post.ImageUrl = "/images/posts/" + fileName;
-                }
-            }
 
             await _context.Posts.AddAsync(post);
             await _context.SaveChangesAsync();
@@ -68,7 +69,7 @@ namespace SocialApp.Data.Services
 
 
 
-        public async Task RemovePostAsync(int postId)
+        public async Task<Post> RemovePostAsync(int postId)
         {
             var postDb = await _context.Posts.FirstOrDefaultAsync(n => n.Id == postId);
 
@@ -79,6 +80,8 @@ namespace SocialApp.Data.Services
                 _context.Posts.Update(postDb);
                 await _context.SaveChangesAsync();
             }
+
+            return postDb;
         }
 
         public async Task RemovePostCommentAsync(int commentId)
@@ -123,6 +126,7 @@ namespace SocialApp.Data.Services
                 {
                     PostId = postId,
                     UserId = userId,
+                    DateCreated = DateTime.UtcNow
                 };
 
                 await _context.Favorites.AddAsync(newFavorite);
