@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SocialApp.Data;
 using SocialApp.Data.Helpers.Enums;
@@ -8,6 +9,7 @@ using SocialApp.ViewModels.Stories;
 
 namespace SocialApp.Controllers
 {
+    [Authorize]
     public class StoriesController : Controller
     {
 

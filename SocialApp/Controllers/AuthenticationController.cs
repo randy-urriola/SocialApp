@@ -1,8 +1,10 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using SocialApp.Data.Helpers.Constants;
 using SocialApp.Data.Models;
 using SocialApp.ViewModels.Authentication;
+using System.Security.Claims;
 
 namespace SocialApp.Controllers
 {
@@ -17,6 +19,29 @@ namespace SocialApp.Controllers
         public async Task<IActionResult> Login()
         {
             return View();
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Login(LoginVM loginVM)
+        {
+            if (!ModelState.IsValid)
+                return View(loginVM);
+
+            var existingUser = await _userManager.FindByEmailAsync(loginVM.Email);
+            if (existingUser == null) {
+                ModelState.AddModelError("", "Invalid email or password. Please, try again");
+                return View(loginVM);
+            }
+            var existingUserClaims = await _userManager.GetClaimsAsync(existingUser);
+            if(!existingUserClaims.Any(c => c.Type == CustomClaim.FullName))
+                await _userManager.AddClaimAsync(existingUser, new Claim(CustomClaim.FullName, existingUser.FullName));
+
+            var result = await _signInManager.PasswordSignInAsync(loginVM.Email, loginVM.Password, false, false);
+            if (result.Succeeded)
+                return RedirectToAction("Index", "Home");
+
+            ModelState.AddModelError("", "Invalid login attempt");
+            return View(loginVM);
         }
 
         public async Task<IActionResult> Register()
@@ -49,11 +74,23 @@ namespace SocialApp.Controllers
             {
                 await _userManager.AddToRoleAsync(newUser, AppRoles.User);
 
+                await _userManager.AddClaimAsync(newUser, new Claim(CustomClaim.FullName, newUser.FullName));
                 await _signInManager.SignInAsync(newUser, isPersistent: false);
                 return RedirectToAction("Index", "Home");
             }
 
-            return View();
+            foreach (var error in result.Errors) {
+                ModelState.AddModelError("", error.Description);
+            }
+
+            return View(registerVM);
+        }
+
+        [Authorize]
+        public async Task<IActionResult> Logout()
+        {
+            await _signInManager.SignOutAsync();
+            return RedirectToAction("Login");
         }
     }
 }

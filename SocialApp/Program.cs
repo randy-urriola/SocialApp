@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using SocialApp.Data;
@@ -22,12 +23,34 @@ builder.Services.AddScoped<IFilesService, FilesService>();
 builder.Services.AddScoped<IUsersService, UsersService>();
 
 // Identity configuration
-builder.Services.AddIdentity<User, IdentityRole<int>>() // son clases que seran usadas para administrar la identidad del usuario
+builder.Services.AddIdentity<User, IdentityRole<int>>(options =>
+{
+    // Password settings: habilitar o no los requerimientos por defecto que trae Identity Role
+    options.Password.RequireDigit = false;
+    options.Password.RequireLowercase = false;
+    options.Password.RequireUppercase = false;
+    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequiredLength = 4;
+}) // son clases que seran usadas para administrar la identidad del usuario
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders(); // genera un token serguro para propositos seguros (ej. restablecer contraseña)
 
-builder.Services.AddAuthentication();
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.LoginPath = "/Authentication/Login";
+    options.AccessDeniedPath = "/Authentication/AccessDenied";
+});
+
+//builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme) esta es otra forma de redirigir al usuario a la vista de login
+//    .AddCookie(options =>
+//    {
+//        options.LoginPath = "/Authentication/Login";
+//        options.AccessDeniedPath = "/Authentication/AccessDenied";
+//    });
+
 builder.Services.AddAuthorization();
+
+
 
 var app = builder.Build();
 
@@ -47,7 +70,9 @@ using (var scope = app.Services.CreateScope())
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
+    app.UseHsts();
 }
+app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
